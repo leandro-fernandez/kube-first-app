@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cockroachdb-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cockroachdb
+  template:
+    metadata:
+      labels:
+        app: cockroachdb
+    spec:
+      containers:
+        - name: cockroachdb
+          image: cockroachdb/cockroach:v26.3.5
+          args:
+            - start-single-node
+            - --listen-addr=:26257
+            - --advertise-addr=cockroachdb-service
+          env:
+            - name: COCKROACH_USER
+              valueFrom:
+                secretKeyRef:
+                  name: cockroachdb-secret
+                  key: DB_USER
+            - name: COCKROACH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cockroachdb-secret
+                  key: DB_PASSWORD
+          ports:
+            - containerPort: 26257
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cockroachdb-service
+spec:
+  selector:
+    app: cockroachdb
+  ports:
+    - protocol: TCP
+      port: 26257
+      targetPort: 26257

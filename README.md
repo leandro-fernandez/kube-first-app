@@ -59,3 +59,40 @@ postgresql://cock:cockroach@cockroachdb-service:26257/defaultdb?sslmode=require
 For this exercise, `sslmode=require` encrypts the connection without verifying
 the generated server certificate. The ConfigMap supplies the hostname; the
 Secret supplies the credentials. No persistent storage is configured.
+
+## Tables and sample data
+
+After deploying CockroachDB, run:
+
+```sh
+./scripts/migrate-cockroachdb.sh
+```
+
+This Bash script runs the SQL files in `migrations/` in filename order against
+`defaultdb`, using the same context, namespace, Service and credentials as the
+deployment script. It requires only `kubectl`; the SQL client runs inside the
+database Pod. `KUBE_CONTEXT` and `KUBE_NAMESPACE` work as above.
+
+| File | Creates |
+| --- | --- |
+| `001_create_customers.sql` | Customers with a UUID ID, name, unique email and creation timestamp |
+| `002_create_orders.sql` | Orders with a UUID ID, unique reference, customer ID, description, decimal price and creation timestamp |
+| `003_seed_sample_data.sql` | 100 sample customers and 300 orders assigned randomly among them |
+
+Primary keys default to `gen_random_uuid()`. The orders' customer foreign key is
+indexed, and prices cannot be negative. An order's price is its total amount in
+one currency for this exercise.
+
+Sample emails are `customer1@example.com` through `customer100@example.com`.
+Order references are `ORD-0001` through `ORD-0300`, with random prices from 1.00
+to 500.00. Some customers may have no orders; others may have several.
+
+These are simple repeatable SQL scripts, without a migration framework or
+migration-history table. Existing tables and sample records are skipped on
+reruns, preserving their IDs, customer assignments and prices. The seed file
+runs in a transaction. Existing tables are not altered to repair schema drift;
+future schema changes should go in new numbered files. The runner stops on SQL
+errors. It does not delete existing data.
+
+For a fresh database, the final summary should show 100 customers and 300 orders.
+Deploying alone does not run migrations or load sample data.
